@@ -1,0 +1,17 @@
+package:
+  name: jivas/outbox_action
+  author: V75 Inc.
+  archetype: OutboxAction
+  version: 0.1.0
+  meta:
+    title: Outbox Action
+    description: Handles the queueing and scheduled mass dispatch of messages (WhatsApp, email, SMS, etc) to recipients.
+    group: core
+    type: action
+  config:
+    singleton: true
+  dependencies:
+    jivas: ~2.1.14
+    actions:
+      jivas/pulse_action: ~0.1.0
+
