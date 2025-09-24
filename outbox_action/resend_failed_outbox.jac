@@ -27,11 +27,11 @@ walker resend_failed_outbox(agent_graph_walker) {
     }
 
     can on_actions with Actions entry {
-        visit [-->](`?Action)(?enabled==True)(?label=='WPPConnectAction');
+        visit [-->](`?Action)(?enabled==True)(?label=='OutboxAction');
     }
 
     can on_action with Action entry {
-        self.response = here.resend_failed_outbox(self.batch_size);
+        self.response = here.batch_resend(self.batch_size);
 
         if self.reporting {
             report self.response;

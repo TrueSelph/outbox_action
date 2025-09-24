@@ -30,7 +30,7 @@ walker purge_outbox(agent_graph_walker) {
     }
 
     can on_actions with Actions entry {
-        visit [-->](`?Action)(?enabled==True)(?label=='WPPConnectAction');
+        visit [-->](`?Action)(?enabled==True)(?label=='OutboxAction');
     }
 
     can on_action with Action entry {

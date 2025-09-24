@@ -2,8 +2,11 @@ import logging;
 import from logging { Logger }
 import from datetime { datetime, timezone }
 import from jivas.agent.core.graph_node { GraphNode }
-import from actions.jivas.wppconnect_action.outbox_item { OutboxItem }
-import from actions.jivas.wppconnect_action.outbox_status { OutboxStatus }
+import from actions.jivas.outbox_action.outbox_item { OutboxItem }
+import from actions.jivas.outbox_action.outbox_status { OutboxStatus }
+import from jivas.agent.memory.interaction_response { InteractionMessage }
+import from jivas.agent.modules.data.commit { commit }
+
 
 node OutboxJob(GraphNode) {
     has collection_id:str = "";
@@ -24,7 +27,7 @@ node OutboxJob(GraphNode) {
 
     def set_status(status:OutboxStatus) -> None {
         # timestamp completed on
-        if status in [OutboxStatus.COMPLETED, OutboxStatus.FAILED, OutboxStatus.CANCELLED, , OutboxStatus.INCOMPLETE] {
+        if status in [OutboxStatus.COMPLETED, OutboxStatus.FAILED, OutboxStatus.CANCELLED, OutboxStatus.PROCESSING, OutboxStatus.INCOMPLETE, OutboxStatus.SENT, OutboxStatus.PENDING] {
             self.completed_on = str((datetime.now(timezone.utc)).isoformat());
         }
         self.status = status;
@@ -49,7 +52,7 @@ node OutboxJob(GraphNode) {
     def get_callback_url() -> str {
         return self.callback_url;
     }
- 
+
     def set_success_rate(success_rate:float) {
         self.success_rate = success_rate;
     }
@@ -65,10 +68,10 @@ node OutboxJob(GraphNode) {
     }
 
     def add_item(
-        sender_action:str,
         message:InteractionMessage,
         session_id:str="",
-        channel:str="default"
+        channel:str="default",
+        status:OutboxStatus=OutboxStatus.PENDING
     ) -> OutboxItem {
         # adds an outbox item to this job entry
         if not all([
@@ -81,12 +84,17 @@ node OutboxJob(GraphNode) {
         item = OutboxItem(
             collection_id = self.collection_id,
             job_id = self.id,
-            sender_action = sender_action,
+            sender_action = self.sender_action,
             message = message,
             session_id = session_id,
-            channel = channel
+            channel = channel,
+            status=status
         );
+
+        self ++> item;
         self.total += 1;
+
+        commit(item);
 
         return item;
     }
