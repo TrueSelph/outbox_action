@@ -1,4 +1,4 @@
-"""Streamlit app for WhatsApp Connect action with improved structure and error handling."""
+"""Streamlit app for Outbox action with improved structure and error handling."""
 
 import json
 import logging
