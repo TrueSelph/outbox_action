@@ -790,7 +790,7 @@ node OutboxAction(Action) {
         };
     }
 
-    def get_job_stats(job_id:str, page:int=1, limit:int=100) -> list[dict] {
+    def get_job_status(job_id:str, page:int=1, limit:int=100) -> list[dict] {
         if not job_id {
             return {};
         }

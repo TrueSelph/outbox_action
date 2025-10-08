@@ -7,7 +7,7 @@ import from jivas.agent.modules.action.path { action_walker_path }
 import from jivas.agent.action.agent_graph_walker { agent_graph_walker }
 
 
-walker get_job_stats(agent_graph_walker) {
+walker get_job_status(agent_graph_walker) {
 
     has page:int = 1;
     has limit:int = 10;
@@ -33,7 +33,7 @@ walker get_job_stats(agent_graph_walker) {
     }
 
     can on_action with Action entry {
-        self.response = here.get_job_stats(page=self.page, limit=0, job_id=self.job_id);  # fetch all documents
+        self.response = here.get_job_status(page=self.page, limit=0, job_id=self.job_id);  # fetch all documents
 
         if self.reporting {
             report self.response;

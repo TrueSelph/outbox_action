@@ -5,5 +5,5 @@ import from actions.jivas.outbox_action {
     list_outbox_items,
     purge_outbox,
     resend_failed_outbox,
-    get_job_stats,
+    get_job_status,
 }
