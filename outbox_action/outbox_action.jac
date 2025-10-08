@@ -373,7 +373,7 @@ node OutboxAction(Action) {
 
         # Start scheduler only if valid messages exist
         self.start_outbox_scheduler();
-        return job_id;
+        return job.id;
     }
 
     def get_outbox_jobs() -> list {
