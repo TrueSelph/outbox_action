@@ -37,7 +37,7 @@ walker get_job_stats(agent_graph_walker) {
 
         if self.reporting {
             report self.response;
-        }  
+        }
     }
 
 }
