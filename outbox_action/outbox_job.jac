@@ -27,7 +27,7 @@ node OutboxJob(GraphNode) {
 
     def set_status(status:OutboxStatus) -> None {
         # timestamp completed on
-        if status in [OutboxStatus.COMPLETED, OutboxStatus.FAILED, OutboxStatus.CANCELLED, OutboxStatus.PROCESSING, OutboxStatus.INCOMPLETE, OutboxStatus.SENT, OutboxStatus.PENDING] {
+        if status in [OutboxStatus.COMPLETED, OutboxStatus.PROCESSING, OutboxStatus.INCOMPLETE] {
             self.completed_on = str((datetime.now(timezone.utc)).isoformat());
         }
         self.status = status;

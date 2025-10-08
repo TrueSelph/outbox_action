@@ -113,7 +113,6 @@ node OutboxAction(Action) {
     def has_outbox_items() -> bool {
         # check if there are any pending outbox items
         pending_items = self.get_outbox_items(status=OutboxStatus.PENDING);
-        self.logger.info(f"Pending outbox items: {len(pending_items)}");
         if len(pending_items) > 0 {
             return True;
         }
@@ -121,13 +120,9 @@ node OutboxAction(Action) {
     }
 
     def start_outbox_scheduler() {
-        self.logger.info(f"Starting outbox scheduler");
-
         # Proceed with scheduler start
         if self.has_outbox_items() {
-            self.logger.info(f"Starting outbox scheduler 2");
             if pulse_action := self.get_agent().get_action(action_label="PulseAction") {
-                self.logger.info(f"Starting outbox scheduler 3");
                 pulse_action.add_schedule(
                     self.get_type(),
                     f'every({self.outbox_send_interval}).seconds'
@@ -152,7 +147,6 @@ node OutboxAction(Action) {
 
     def send_outbox_items(outbox_items:list) -> (int, int, int) {
         # sends a list of outbox items and updates the job status accordingly
-        self.logger.info(f"Sending {len(outbox_items)} outbox items");
 
         processed_count = 0;
         success_count = 0;
@@ -160,70 +154,70 @@ node OutboxAction(Action) {
 
         for item in outbox_items {
 
-            # try {
+            try {
 
-            # grab the job for the item
-            job = item.get_job();
-            sender_action_label = job.get_sender_action();
-            session_id = item.get_session_id();
-            message = item.get_message();
-            channel = item.get_channel();
+                # grab the job for the item
+                job = item.get_job();
+                sender_action_label = job.get_sender_action();
+                session_id = item.get_session_id();
+                message = item.get_message();
+                channel = item.get_channel();
 
-            # perform checks
-            if not sender_action_label or not session_id or not message {
-                raise Exception(f"Outbox item {item_id} missing required fields");
-            }
+                # perform checks
+                if not sender_action_label or not session_id or not message {
+                    raise Exception(f"Outbox item {item_id} missing required fields");
+                }
 
-            # load the reference to the sender action
-            sender_action = self.get_agent().get_action(action_label=sender_action_label);
+                # load the reference to the sender action
+                sender_action = self.get_agent().get_action(action_label=sender_action_label);
 
-            if not sender_action {
-                raise Exception(f"Sender action {sender_action_label} not found for outbox item {item_id}");
-            }
+                if not sender_action {
+                    raise Exception(f"Sender action {sender_action_label} not found for outbox item {item_id}");
+                }
 
-            if not hasattr(sender_action, 'send_outbox_message') {
-                raise Exception(f"Sender action {sender_action} does not implement send_outbox_message method");
-            }
+                if not hasattr(sender_action, 'send_outbox_message') {
+                    raise Exception(f"Sender action {sender_action} does not implement send_outbox_message method");
+                }
 
-            # attempt to send the message by calling the sender action's send_outbox_message method
-            sent = sender_action.send_outbox_message(
-                session_id=session_id,
-                message=message
-            );
+                # attempt to send the message by calling the sender action's send_outbox_message method
+                sent = sender_action.send_outbox_message(
+                    session_id=session_id,
+                    message=message
+                );
 
-            if sent {
-                # update the status of the item
-                item.set_status(OutboxStatus.SENT);
-                success_count += 1;
-                new_success_rate = (job.get_success_rate() + success_count) / job.get_total_items();
-                job.set_success_rate(new_success_rate);
+                if sent {
+                    # update the status of the item
+                    item.set_status(OutboxStatus.SENT);
+                    success_count += 1;
+                    new_success_rate = (job.get_success_rate() + success_count) / job.get_total_items();
+                    job.set_success_rate(new_success_rate);
 
-                self.update_interaction_context(session_id, message, channel);
+                    self.update_interaction_context(session_id, message, channel);
 
-            } else {
+                } else {
 
+                    item.set_status(OutboxStatus.FAILED);
+                    failure_count += 1;
+
+                }
+                commit();
+
+                processed_count += 1;
+
+            } except Exception as e {
+
+                self.logger.error(f"Outbox message processing failed for [{item.export()}]: {str(e)}");
                 item.set_status(OutboxStatus.FAILED);
                 failure_count += 1;
+                processed_count += 1;
 
             }
-
-            processed_count += 1;
-
-            # } except Exception as e {
-
-            #     self.logger.error(f"Outbox message processing failed for [{item.export()}]: {str(e)}");
-            #     item.set_status(OutboxStatus.FAILED);
-            #     failure_count += 1;
-            #     processed_count += 1;
-
-            # }
         }
 
         return (processed_count, success_count, failure_count);
     }
 
     def batch_send(batch_size: int = 1) -> (int, int, int) {
-        self.logger.info(f"Sending batch of {batch_size} outbox items");
         # send items from outbox with batch processing
         if not self.has_outbox_items() {
             return (0, 0, 0);
@@ -233,10 +227,6 @@ node OutboxAction(Action) {
         success_count = 0;
         failure_count = 0;
         pending_items = self.get_outbox_items(status=OutboxStatus.PENDING);
-        self.logger.info(f"Pending outbox items: {len(pending_items)}");
-        self.logger.info(f"processed_count: {processed_count}");
-        self.logger.info(f"success_count: {success_count}");
-        self.logger.info(f"failure_count: {failure_count}");
 
         while processed_count < batch_size and len(pending_items) > 0 {
 
@@ -316,15 +306,12 @@ node OutboxAction(Action) {
             return "";
         }
 
-        # self.logger.info(messages);
-
         valid_items = 0;
         validation_errors = [];
 
         # create a new outbox job
         job = None;
         collection = self.get_collection();
-        self.logger.info(f"Adding outbox job with {len(messages)} messages. collection id: {collection.id}");
 
         try{
             # if job_id is not provided, create a new job
@@ -350,8 +337,6 @@ node OutboxAction(Action) {
         }
 
         for (index, item) in enumerate(messages) {
-            self.logger.info(f"type: {type(item)}");
-            # self.logger.info(f"item: {item}");
             validation_errors = self.validate_message_item(item, index, validation_errors);
             if validation_errors {
                 self.logger.error(f"Message {index} validation failed");
@@ -380,7 +365,6 @@ node OutboxAction(Action) {
         # Clean up empty jobs
         if valid_items == 0 {
             self.purge_outbox(job_id=job.id);
-            self.logger.warning(f"OutboxJob {job.id} contained no valid messages");
             if validation_errors {
                 self.logger.debug(f"Validation errors:\n" + "\n".join(validation_errors));
             }
@@ -412,9 +396,6 @@ node OutboxAction(Action) {
             "name": "OutboxItem",
             "archetype.collection_id": collection.id
         };
-        # witems = node_get({"name": "OutboxItem"});
-        # self.logger.info(f"collection.id: {collection.id}");
-        # self.logger.info(f"witems: {witems}");
 
         if status {
             query["archetype.status"] = str(status.value);
@@ -423,10 +404,8 @@ node OutboxAction(Action) {
         if job_id {
             query["archetype.job_id"] = job_id;
         }
-        self.logger.info(f"get_outbox_items query: {query}");
 
         items = node_get(query);
-        # self.logger.info(f"items: {items}");
 
         return list(items);
     }
@@ -602,11 +581,24 @@ node OutboxAction(Action) {
 
         if (callback := job.get_callback_url()) and (len(pending_items) == 0) {
 
-            self.api().send_rest_request(
+            sender_action_label = job.get_sender_action();
+
+            # load the reference to the sender action
+            sender_action = self.get_agent().get_action(action_label=sender_action_label);
+
+            if not sender_action {
+                raise Exception(f"Sender action {sender_action_label} not found.");
+            }
+
+            if not hasattr(sender_action, 'api') {
+                raise Exception(f"Sender action {sender_action} does not implement api method");
+            }
+
+            sender_action.api().send_rest_request(
                 endpoint=callback,
                 method='POST',
                 data={
-                    'status': job.get_status(),
+                    'status': job.get_status().value,
                     'job_id': job_id,
                     'success_count': len(sent_items),
                     'failure_count': len(failed_items),
@@ -661,15 +653,6 @@ node OutboxAction(Action) {
         );
     }
 
-    # # collection
-    # def add_outbox_item_collection(status:OutboxStatus, job_id: str, item_id: str, session_id: str, message: InteractionMessage) -> OutboxJob {
-    #     collection = self.get_collection();
-    #     outbox_item = (collection spawn _add_job_collection(status=status, job_id=job_id, item_id=item_id, session_id=session_id, message=message, collection_id=collection.id)).outbox_item;
-    #     if outbox_item {
-    #         self.increment_job_count();
-    #     }
-    #     return outbox_item;
-    # }
 
     def purge_outbox(purge:bool = False, threshold_days:int = 0, status:list = [], item_id:str = "", job_id:str = "") -> bool {
         collection = self.get_collection();
@@ -686,7 +669,6 @@ node OutboxAction(Action) {
     }
 
     def import_outbox(outbox: dict, purge_collection: bool = False) -> bool {
-        # try {
         collection = self.get_collection();
 
         # purge jobs collection
@@ -733,37 +715,10 @@ node OutboxAction(Action) {
                 }
                 self.add_outbox_job(messages = messages, job_id = job_id, sender_action = job_sender_action, callback_url = job_callback_url, status=OutboxStatus.FAILED);
             }
-            # # for (item_id, job) in job_data['pending'].items() {
-            # #     self.add_outbox_item_collection(status=OutboxStatus.PENDING, job_id=job_id, item_id=item_id, session_id=job['session_id'], message=job['message']);
-            # # }
-            # for (item_id, job) in job_data['processed'].items() {
-            #     self.add_outbox_item_collection(status=OutboxStatus.PROCESSED, job_id=job_id, item_id=item_id, session_id=job['session_id'], message=job['message']);
-            # }
-            # for (item_id, job) in job_data['failed'].items() {
-            #     self.add_outbox_item_collection(status=OutboxStatus.FAILED, job_id=job_id, item_id=item_id, session_id=job['session_id'], message=job['message']);
-            # }
         }
-
-        # # Calculate dynamic batch size based on current rate window
-        # batch_size = self.calculate_dynamic_batch_size();
-
-        # # Process messages with current batch size
-        # (processed, successes, failures) = self.batch_send(batch_size=batch_size);
-
-        # # Update rate limiting parameters
-        # self.update_send_parameters(successes, failures);
-
-        # # Restart scheduler with new parameters if items remain
-        # if self.has_outbox_items() {
-        #     self.restart_scheduler();
-        # }
         self.start_outbox_scheduler();
 
         return True;
-        # } except Exception as e {
-        #     self.logger.error(f"Error importing outbox: {e}");
-        #     return False;
-        # }
     }
 
 
@@ -832,6 +787,34 @@ node OutboxAction(Action) {
             "processed": processed_items,
             "pending": pending_items,
             "failed": failed_items
+        };
+    }
+
+    def get_job_stats(job_id:str, page:int=1, limit:int=100) -> list[dict] {
+        if not job_id {
+            return {};
+        }
+
+        collection = self.get_collection();
+
+        processed_items = NodeAnchor.Collection.count({
+            "$and": [{"name": "OutboxItem"}, {"archetype.collection_id": collection.id}, {"archetype.job_id": job_id}, {"archetype.status": {"$in": ["SENT"]}}]
+        });
+
+        failed_items = NodeAnchor.Collection.count({
+            "$and": [{"name": "OutboxItem"}, {"archetype.collection_id": collection.id}, {"archetype.job_id": job_id}, {"archetype.status": {"$in": ["FAILED"]}}]
+        });
+
+        pending_items = NodeAnchor.Collection.count({
+            "$and": [{"name": "OutboxItem"}, {"archetype.collection_id": collection.id}, {"archetype.job_id": job_id}, {"archetype.status": {"$in": ["PENDING"]}}]
+        });
+
+
+        return {
+            "total_items": processed_items + pending_items + failed_items,
+            "success_count": processed_items,
+            "failure_count": pending_items,
+            "pending_count": failed_items
         };
     }
 
@@ -1001,11 +984,8 @@ walker _get_jobs {
     }
 
     can on_job with OutboxJob entry {
-        print(f"job_id: {here.id}");
-
         # get pending post
         pending_outbox_item_node = [-->](`?OutboxItem)(?status == OutboxStatus.PENDING);
-        print(f"pending_outbox_item_node: {pending_outbox_item_node}");
         pending_outbox_item_data = {};
         for item in pending_outbox_item_node {
             pending_outbox_item_data[item.id] = {
@@ -1133,8 +1113,6 @@ walker _purge_outbox {
             if here.status.value in self.status {
                 self.deleted.append(here);
             }
-        } else {
-            self.deleted.append(here);
         }
     }
 
